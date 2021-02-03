@@ -1,17 +1,45 @@
 import uuid
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import pre_save
 
-# Create your models here.
 class Relator(models.Model):
-    nombre = models.CharField(max_length=255, null=False, default='')
     create_at = models.DateTimeField(auto_now_add=True)
     relator_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=255, null=False, default='')
     create_at = models.DateTimeField(auto_now_add=True)
     sucursal_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
+
+
+class Cargo(models.Model):
+    nombre = models.CharField(max_length=255, null=False, default='')
+    cargo_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    create_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.cargo_id
+
+class Categoria(models.Model):
+    nombre = models.CharField(max_length=255, null=False, default='')
+    categoria_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    create_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.categoria_id
+
+class CentroCosto(models.Model):
+    nombre = models.CharField(max_length=255, null=False, default='')
+    centro_costo_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    create_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.centro_costo_id
 
 class Modalidad(models.Model):
     nombre = models.CharField(max_length=255, null=False, default='')
@@ -27,7 +55,23 @@ class Competencia(models.Model):
     nombre = models.CharField(max_length=255, null=False, default='')
     create_at = models.DateTimeField(auto_now_add=True)
 
+class Planificacion(models.Model):
+    fecha_planificacion = models.DateField()
+    categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True)
+    centro_costo = models.ForeignKey(CentroCosto, on_delete=models.CASCADE, null=True)
+    cargo = models.ForeignKey(Cargo, on_delete=models.CASCADE, null=True)
+
 class Curso(models.Model):
+    ORIGEN = (
+        ('W', 'Web'),
+        ('T', 'Tablet'),
+        ('E', 'Externo'),#cursos importados en excel
+    )
+    ESTADO = (
+        ('A', 'Activo'),
+        ('I', 'Inactivo'),
+        ('E', 'Eliminado'),
+    )
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     tema = models.CharField(max_length=255, null=False, default='')
     competencia = models.ForeignKey(Competencia, on_delete=models.CASCADE)
@@ -36,6 +80,9 @@ class Curso(models.Model):
     codigo = models.CharField(max_length=100, null=False, default='')
     hora = models.IntegerField(default=1)
     contenido = models.CharField(max_length=255, null=False, default='')
+    planificacion = models.ForeignKey(Planificacion, on_delete=models.CASCADE, null=True)
+    origen_creacion = models.CharField(max_length=1, choices=ORIGEN, default='W')
+    estado = models.CharField(max_length=1, choices=ESTADO, default='A')
     # documentos # pendiente
     create_at = models.DateTimeField(auto_now_add=True)
     curso_id = models.CharField(max_length=100, null=False, blank=False, unique=True)
@@ -95,7 +142,55 @@ def set_relator_id(sender, instance, *args, **kwargs):
         #nos ayuda a generar un identificador, no retorna un object
         instance.relator_id = str(uuid.uuid4())
 
+def set_cargo_id(sender, instance, *args, **kwargs):
+    """
+    Función que me ayuda a generar un identificador
+    cada vez que se crea un Object Cargo
+    :param sender (Class): sobre que Class se aplicará el cambio
+    :param instance (Object): La instancia que se creará
+    :param args (list): otros parametros
+    :param kwargs (list): otros parametros
+    :return (None):
+    """
+    #Se valida si ya posee un cargo_id
+    if not instance.cargo_id:
+        #nos ayuda a generar un identificador, no retorna un object
+        instance.cargo_id = str(uuid.uuid4())
+
+def set_categoria_id(sender, instance, *args, **kwargs):
+    """
+    Función que me ayuda a generar un identificador
+    cada vez que se crea un Object Categoria
+    :param sender (Class): sobre que Class se aplicará el cambio
+    :param instance (Object): La instancia que se creará
+    :param args (list): otros parametros
+    :param kwargs (list): otros parametros
+    :return (None):
+    """
+    #Se valida si ya posee un categoria_id
+    if not instance.categoria_id:
+        #nos ayuda a generar un identificador, no retorna un object
+        instance.categoria_id = str(uuid.uuid4())
+
+def set_centro_costo_id(sender, instance, *args, **kwargs):
+    """
+    Función que me ayuda a generar un identificador
+    cada vez que se crea un Object CentroCosto
+    :param sender (Class): sobre que Class se aplicará el cambio
+    :param instance (Object): La instancia que se creará
+    :param args (list): otros parametros
+    :param kwargs (list): otros parametros
+    :return (None):
+    """
+    #Se valida si ya posee un categoria_id
+    if not instance.centro_costo_id:
+        #nos ayuda a generar un identificador, no retorna un object
+        instance.centro_costo_id = str(uuid.uuid4())
+
 #Asigno al pre_save la función que actuará antes de guardar, e indico a que class corresponde
 pre_save.connect(set_curso_id, sender=Curso)
 pre_save.connect(set_sucursal_id, sender=Sucursal)
 pre_save.connect(set_relator_id, sender=Relator)
+pre_save.connect(set_cargo_id, sender=Cargo)
+pre_save.connect(set_categoria_id, sender=Categoria)
+pre_save.connect(set_centro_costo_id, sender=CentroCosto)
